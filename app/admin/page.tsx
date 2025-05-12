@@ -4,15 +4,29 @@ import { useEffect, useState } from "react"
 import { SurveySubmission } from "@/lib/models/survey"
 import { CopyButton } from "@/components/ui/copy-button"
 import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+type SortField = "name" | "email" | "createdAt" | "referenceNumber"
+type SortDirection = "asc" | "desc"
 
 export default function AdminPage() {
   const [submissions, setSubmissions] = useState<SurveySubmission[]>([])
   const [filteredSubmissions, setFilteredSubmissions] = useState<SurveySubmission[]>([])
+  const [displayedSubmissions, setDisplayedSubmissions] = useState<SurveySubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedSubmission, setSelectedSubmission] = useState<SurveySubmission | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [totalPages, setTotalPages] = useState(1)
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>("createdAt")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
   useEffect(() => {
     async function fetchSubmissions() {
@@ -39,19 +53,73 @@ export default function AdminPage() {
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredSubmissions(submissions)
-      return
+    } else {
+      const lowerCaseSearch = searchTerm.toLowerCase()
+      const filtered = submissions.filter(submission =>
+        submission.name?.toLowerCase().includes(lowerCaseSearch) ||
+        submission.email?.toLowerCase().includes(lowerCaseSearch) ||
+        submission.referenceNumber?.toLowerCase().includes(lowerCaseSearch) ||
+        (submission.phoneNumber && submission.phoneNumber.toLowerCase().includes(lowerCaseSearch))
+      )
+      setFilteredSubmissions(filtered)
     }
 
-    const lowerCaseSearch = searchTerm.toLowerCase()
-    const filtered = submissions.filter(submission =>
-      submission.name.toLowerCase().includes(lowerCaseSearch) ||
-      submission.email.toLowerCase().includes(lowerCaseSearch) ||
-      submission.referenceNumber.toLowerCase().includes(lowerCaseSearch) ||
-      (submission.phoneNumber && submission.phoneNumber.toLowerCase().includes(lowerCaseSearch))
-    )
-
-    setFilteredSubmissions(filtered)
+    // Reset to first page when search changes
+    setCurrentPage(1)
   }, [searchTerm, submissions])
+
+  // Sort and paginate submissions
+  useEffect(() => {
+    // Sort the filtered submissions
+    const sortedSubmissions = [...filteredSubmissions].sort((a, b) => {
+      // Handle null or undefined values
+      const aValue = a[sortField] || "";
+      const bValue = b[sortField] || "";
+
+      // For dates, convert to timestamps
+      if (sortField === "createdAt") {
+        const aDate = new Date(aValue as string).getTime();
+        const bDate = new Date(bValue as string).getTime();
+        return sortDirection === "asc" ? aDate - bDate : bDate - aDate;
+      }
+
+      // For strings
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortDirection === "asc"
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      return 0;
+    });
+
+    // Calculate total pages
+    const calculatedTotalPages = Math.ceil(sortedSubmissions.length / itemsPerPage);
+    setTotalPages(calculatedTotalPages || 1); // Ensure at least 1 page
+
+    // Adjust current page if it's out of bounds
+    if (currentPage > calculatedTotalPages && calculatedTotalPages > 0) {
+      setCurrentPage(calculatedTotalPages);
+    }
+
+    // Get current page items
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    setDisplayedSubmissions(sortedSubmissions.slice(startIndex, endIndex));
+
+  }, [filteredSubmissions, currentPage, itemsPerPage, sortField, sortDirection])
+
+  // Handle sort toggle
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // New field, default to descending
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  }
 
   if (loading) {
     return (
@@ -70,6 +138,14 @@ export default function AdminPage() {
       </div>
     )
   }
+
+  // Render sort icon based on current sort state
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortDirection === "asc" ?
+      <ArrowUp className="h-3 w-3 ml-1" /> :
+      <ArrowDown className="h-3 w-3 ml-1" />;
+  };
 
   return (
     <div className="container mx-auto p-8">
@@ -105,40 +181,110 @@ export default function AdminPage() {
             )}
           </div>
 
+          {/* Sorting Options */}
+          <div className="bg-white rounded-lg shadow mb-4 p-3">
+            <div className="text-sm font-medium mb-2">Sort by:</div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={sortField === "createdAt" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center"
+                onClick={() => handleSort("createdAt")}
+              >
+                Date {renderSortIcon("createdAt")}
+              </Button>
+              <Button
+                variant={sortField === "name" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center"
+                onClick={() => handleSort("name")}
+              >
+                Name {renderSortIcon("name")}
+              </Button>
+              <Button
+                variant={sortField === "email" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center"
+                onClick={() => handleSort("email")}
+              >
+                Email {renderSortIcon("email")}
+              </Button>
+              <Button
+                variant={sortField === "referenceNumber" ? "default" : "outline"}
+                size="sm"
+                className="flex items-center"
+                onClick={() => handleSort("referenceNumber")}
+              >
+                Reference {renderSortIcon("referenceNumber")}
+              </Button>
+            </div>
+          </div>
+
           {filteredSubmissions.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-4 text-center text-gray-500">
               No submissions found matching your search.
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <ul className="divide-y divide-gray-200 max-h-[600px] overflow-y-auto">
-                {filteredSubmissions.map((submission) => (
-                  <li
-                    key={submission.referenceNumber}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 ${
-                      selectedSubmission?.referenceNumber === submission.referenceNumber
-                        ? 'bg-blue-50'
-                        : ''
-                    }`}
-                    onClick={() => setSelectedSubmission(submission)}
+            <>
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <ul className="divide-y divide-gray-200 max-h-[500px] overflow-y-auto">
+                  {displayedSubmissions.map((submission) => (
+                    <li
+                      key={submission.referenceNumber}
+                      className={`p-4 cursor-pointer hover:bg-gray-50 ${
+                        selectedSubmission?.referenceNumber === submission.referenceNumber
+                          ? 'bg-blue-50'
+                          : ''
+                      }`}
+                      onClick={() => setSelectedSubmission(submission)}
+                    >
+                      <div className="font-medium">{submission.name}</div>
+                      <div className="text-sm text-gray-600">{submission.email}</div>
+                      <div className="text-xs text-gray-500 mt-1 flex items-center">
+                        <span>Ref: {submission.referenceNumber}</span>
+                        <CopyButton
+                          value={submission.referenceNumber}
+                          className="ml-1 h-5 w-5 p-0"
+                          variant="ghost"
+                        />
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {new Date(submission.createdAt).toLocaleString()}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 bg-white p-2 rounded-lg shadow">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center"
                   >
-                    <div className="font-medium">{submission.name}</div>
-                    <div className="text-sm text-gray-600">{submission.email}</div>
-                    <div className="text-xs text-gray-500 mt-1 flex items-center">
-                      <span>Ref: {submission.referenceNumber}</span>
-                      <CopyButton
-                        value={submission.referenceNumber}
-                        className="ml-1 h-5 w-5 p-0"
-                        variant="ghost"
-                      />
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(submission.createdAt).toLocaleString()}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  </Button>
+
+                  <div className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center"
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
