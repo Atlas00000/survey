@@ -76,16 +76,62 @@ export function SurveyForm() {
     setError(null)
 
     try {
-      // Clean up file data for JSON serialization
-      const cleanedData = { ...values }
-      if (cleanedData.driverLicenseFront) {
-        cleanedData.driverLicenseFront = "File uploaded"
-      }
-      if (cleanedData.driverLicenseBack) {
-        cleanedData.driverLicenseBack = "File uploaded"
+      // First, upload any files
+      const formData = new FormData()
+      let frontLicenseUrl = null
+      let backLicenseUrl = null
+
+      // Upload driver's license front if provided
+      if (values.driverLicenseFront && values.driverLicenseFront instanceof File) {
+        formData.set('file', values.driverLicenseFront)
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (uploadResponse.ok) {
+          const result = await uploadResponse.json()
+          if (result.success) {
+            frontLicenseUrl = result.fileUrl
+          }
+        }
+        // Clear formData for next upload
+        formData.delete('file')
       }
 
-      // Send the data directly to the API route
+      // Upload driver's license back if provided
+      if (values.driverLicenseBack && values.driverLicenseBack instanceof File) {
+        formData.set('file', values.driverLicenseBack)
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (uploadResponse.ok) {
+          const result = await uploadResponse.json()
+          if (result.success) {
+            backLicenseUrl = result.fileUrl
+          }
+        }
+      }
+
+      // Prepare data for submission
+      const cleanedData = { ...values }
+
+      // Replace file objects with URLs or placeholder
+      if (frontLicenseUrl) {
+        cleanedData.driverLicenseFront = frontLicenseUrl
+      } else if (cleanedData.driverLicenseFront) {
+        cleanedData.driverLicenseFront = "File uploaded but not stored"
+      }
+
+      if (backLicenseUrl) {
+        cleanedData.driverLicenseBack = backLicenseUrl
+      } else if (cleanedData.driverLicenseBack) {
+        cleanedData.driverLicenseBack = "File uploaded but not stored"
+      }
+
+      // Send the data to the API route
       const response = await fetch('/api/send-survey', {
         method: 'POST',
         headers: {

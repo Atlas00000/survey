@@ -10,6 +10,8 @@ services:
     environment:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017/survey
+    volumes:
+      - uploads_data:/app/public/uploads
     restart: always
     depends_on:
       - mongodb
@@ -24,3 +26,4 @@ services:
 
 volumes:
   mongodb_data:
+  uploads_data:
