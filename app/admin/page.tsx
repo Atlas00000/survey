@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import { SurveySubmission } from "@/lib/models/survey"
 import { CopyButton } from "@/components/ui/copy-button"
 import { Input } from "@/components/ui/input"
-import { Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Download, FileDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ImageViewer } from "@/components/ui/image-viewer"
+import { convertToCSV, downloadCsv } from "@/lib/utils/csv-export"
 
 type SortField = "name" | "email" | "createdAt" | "referenceNumber"
 type SortDirection = "asc" | "desc"
@@ -147,9 +149,26 @@ export default function AdminPage() {
       <ArrowDown className="h-3 w-3 ml-1" />;
   };
 
+  // Handle CSV export
+  const handleExportCsv = () => {
+    const csvContent = convertToCSV(filteredSubmissions);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadCsv(csvContent, `survey-submissions-${timestamp}.csv`);
+  };
+
   return (
     <div className="container mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <Button
+          onClick={handleExportCsv}
+          className="flex items-center"
+          disabled={filteredSubmissions.length === 0}
+        >
+          <FileDown className="mr-2 h-4 w-4" />
+          Export to CSV
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Submissions List */}
@@ -396,28 +415,15 @@ export default function AdminPage() {
                 {/* Driver's License Front */}
                 {selectedSubmission.driverLicenseFront && (
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-100 px-4 py-2 font-medium flex justify-between items-center">
+                    <div className="bg-gray-100 px-4 py-2 font-medium">
                       <span>Driver's License (Front)</span>
-                      {selectedSubmission.driverLicenseFront.startsWith('/uploads/') && (
-                        <a
-                          href={selectedSubmission.driverLicenseFront}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          View Full Size
-                        </a>
-                      )}
                     </div>
                     <div className="p-4">
                       {selectedSubmission.driverLicenseFront.startsWith('/uploads/') ? (
-                        <div className="aspect-video bg-gray-50 flex items-center justify-center">
-                          <img
-                            src={selectedSubmission.driverLicenseFront}
-                            alt="Driver's License Front"
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </div>
+                        <ImageViewer
+                          src={selectedSubmission.driverLicenseFront}
+                          alt="Driver's License Front"
+                        />
                       ) : (
                         <div className="aspect-video bg-gray-50 flex items-center justify-center">
                           <p className="text-gray-500 text-sm p-4 text-center">
@@ -432,28 +438,15 @@ export default function AdminPage() {
                 {/* Driver's License Back */}
                 {selectedSubmission.driverLicenseBack && (
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-100 px-4 py-2 font-medium flex justify-between items-center">
+                    <div className="bg-gray-100 px-4 py-2 font-medium">
                       <span>Driver's License (Back)</span>
-                      {selectedSubmission.driverLicenseBack.startsWith('/uploads/') && (
-                        <a
-                          href={selectedSubmission.driverLicenseBack}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          View Full Size
-                        </a>
-                      )}
                     </div>
                     <div className="p-4">
                       {selectedSubmission.driverLicenseBack.startsWith('/uploads/') ? (
-                        <div className="aspect-video bg-gray-50 flex items-center justify-center">
-                          <img
-                            src={selectedSubmission.driverLicenseBack}
-                            alt="Driver's License Back"
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </div>
+                        <ImageViewer
+                          src={selectedSubmission.driverLicenseBack}
+                          alt="Driver's License Back"
+                        />
                       ) : (
                         <div className="aspect-video bg-gray-50 flex items-center justify-center">
                           <p className="text-gray-500 text-sm p-4 text-center">
