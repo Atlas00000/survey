@@ -77,41 +77,62 @@ export function SurveyForm() {
 
     try {
       // First, upload any files
-      const formData = new FormData()
       let frontLicenseUrl = null
       let backLicenseUrl = null
 
       // Upload driver's license front if provided
       if (values.driverLicenseFront && values.driverLicenseFront instanceof File) {
-        formData.set('file', values.driverLicenseFront)
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
+        console.log("Uploading driver's license front:", values.driverLicenseFront.name);
+        const frontFormData = new FormData()
+        frontFormData.append('file', values.driverLicenseFront)
 
-        if (uploadResponse.ok) {
-          const result = await uploadResponse.json()
-          if (result.success) {
-            frontLicenseUrl = result.fileUrl
+        try {
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: frontFormData,
+          })
+
+          if (uploadResponse.ok) {
+            const result = await uploadResponse.json()
+            console.log("Front license upload result:", result);
+            if (result.success) {
+              frontLicenseUrl = result.fileUrl
+            } else {
+              console.error("Front license upload failed:", result.error);
+            }
+          } else {
+            console.error("Front license upload response not OK:", await uploadResponse.text());
           }
+        } catch (uploadError) {
+          console.error("Error uploading front license:", uploadError);
         }
-        // Clear formData for next upload
-        formData.delete('file')
       }
 
       // Upload driver's license back if provided
       if (values.driverLicenseBack && values.driverLicenseBack instanceof File) {
-        formData.set('file', values.driverLicenseBack)
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
+        console.log("Uploading driver's license back:", values.driverLicenseBack.name);
+        const backFormData = new FormData()
+        backFormData.append('file', values.driverLicenseBack)
 
-        if (uploadResponse.ok) {
-          const result = await uploadResponse.json()
-          if (result.success) {
-            backLicenseUrl = result.fileUrl
+        try {
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: backFormData,
+          })
+
+          if (uploadResponse.ok) {
+            const result = await uploadResponse.json()
+            console.log("Back license upload result:", result);
+            if (result.success) {
+              backLicenseUrl = result.fileUrl
+            } else {
+              console.error("Back license upload failed:", result.error);
+            }
+          } else {
+            console.error("Back license upload response not OK:", await uploadResponse.text());
           }
+        } catch (uploadError) {
+          console.error("Error uploading back license:", uploadError);
         }
       }
 
@@ -121,17 +142,22 @@ export function SurveyForm() {
       // Replace file objects with URLs or placeholder
       if (frontLicenseUrl) {
         cleanedData.driverLicenseFront = frontLicenseUrl
+        console.log("Using front license URL:", frontLicenseUrl);
       } else if (cleanedData.driverLicenseFront) {
         cleanedData.driverLicenseFront = "File uploaded but not stored"
+        console.log("Front license not stored properly");
       }
 
       if (backLicenseUrl) {
         cleanedData.driverLicenseBack = backLicenseUrl
+        console.log("Using back license URL:", backLicenseUrl);
       } else if (cleanedData.driverLicenseBack) {
         cleanedData.driverLicenseBack = "File uploaded but not stored"
+        console.log("Back license not stored properly");
       }
 
       // Send the data to the API route
+      console.log("Submitting form data to API");
       const response = await fetch('/api/send-survey', {
         method: 'POST',
         headers: {
@@ -146,6 +172,7 @@ export function SurveyForm() {
       }
 
       const result = await response.json()
+      console.log("Form submission result:", result);
 
       if (result.success) {
         // Store the reference number in sessionStorage to display on thank you page

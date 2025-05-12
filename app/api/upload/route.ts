@@ -5,15 +5,19 @@ import { existsSync } from "fs";
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("File upload API called");
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
     if (!file) {
+      console.log("No file found in form data");
       return NextResponse.json(
         { error: "No file uploaded" },
         { status: 400 }
       );
     }
+
+    console.log(`Received file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
 
     // Get file extension
     const fileExtension = file.name.split(".").pop() || "";
@@ -29,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Define the path where the file will be saved
     const uploadDir = join(process.cwd(), "public", "uploads");
+    console.log(`Upload directory: ${uploadDir}`);
 
     // Ensure the upload directory exists
     if (!existsSync(uploadDir)) {
@@ -37,24 +42,32 @@ export async function POST(request: NextRequest) {
     }
 
     const filePath = join(uploadDir, uniqueFilename);
+    console.log(`Saving file to: ${filePath}`);
 
-    // Write the file to the filesystem
-    await writeFile(filePath, buffer);
+    try {
+      // Write the file to the filesystem
+      await writeFile(filePath, buffer);
+      console.log(`File successfully saved to: ${filePath}`);
 
-    console.log(`File saved to: ${filePath}`);
+      // Return the path to the file (relative to the public directory)
+      const fileUrl = `/uploads/${uniqueFilename}`;
 
-    // Return the path to the file (relative to the public directory)
-    const fileUrl = `/uploads/${uniqueFilename}`;
-
-    return NextResponse.json({
-      success: true,
-      fileUrl,
-      message: "File uploaded successfully"
-    });
+      return NextResponse.json({
+        success: true,
+        fileUrl,
+        message: "File uploaded successfully"
+      });
+    } catch (writeError) {
+      console.error(`Error writing file to ${filePath}:`, writeError);
+      return NextResponse.json(
+        { error: `Failed to write file: ${writeError.message}` },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error uploading file:", error);
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: `Failed to upload file: ${error.message}` },
       { status: 500 }
     );
   }
